@@ -1,3 +1,9 @@
+## Como crear la imagen de raspberry
+
+Descargar el Raspberry Pi Imager de [aca](https://www.raspberrypi.com/software/)
+
+Conectar la memoria SD y seguir las instrucciones para instalar Raspberry Pi OS
+
 ## Para instalar el proyecto primero hay que clonar el repositorio.
 
 1. Abrir una consola
