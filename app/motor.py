@@ -1,5 +1,4 @@
 import RPi.GPIO as GPIO
-import time
 import threading
 import os
 
@@ -15,6 +14,7 @@ def load_tiempos_config(path="cfg/tiempos.txt"):
             f.write("tiempo_subida_velocidad=3\n")
             f.write("pulso_parada_rapida=2\n")
             f.write("vueltas_para_velocidad_baja=4\n")
+            f.write("debounce_time_ms=150\n")
         return config
 
     try:
@@ -55,12 +55,20 @@ class Motor:
         self.pulso_parada_rapida = cfg["pulso_parada_rapida"]
         self.vueltas_para_velocidad_baja = cfg["vueltas_para_velocidad_baja"]
 
+        self._parada_timer = None
+        self.tiempo_apagado_parada_normal = 5  # segundos
+
         GPIO.setmode(GPIO.BCM)
 
         GPIO.setup(self.pin_gira, GPIO.OUT, initial=GPIO.HIGH)
         GPIO.setup(self.pin_velocidad, GPIO.OUT, initial=GPIO.HIGH)
         GPIO.setup(self.pin_parada_rapida, GPIO.OUT, initial=GPIO.HIGH)
 
+    def _cancelar_parada_timer(self):
+        if self._parada_timer:
+            self._parada_timer.cancel()
+            self._parada_timer = None
+ 
     def _programar_alta_velocidad(self):
         self._cancelar_timer()
 
@@ -90,14 +98,16 @@ class Motor:
     
     def arrancar(self, solo_baja_velocidad=False):
 
-        # Seteo el arranque a baja velocidad
+        self._cancelar_parada_timer()
+
+        # Seteo baja velocidad
         GPIO.output(self.pin_velocidad, GPIO.HIGH)
 
-        # Por las dudas bajo la parada rapida
-        GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
-
-        # Habilito el giro del motor
+        # Activo giro
         GPIO.output(self.pin_gira, GPIO.LOW)
+
+        # Activo señal parada rapida (ahora LOW en marcha)
+        GPIO.output(self.pin_parada_rapida, GPIO.LOW)
 
         if not solo_baja_velocidad:
             self._programar_alta_velocidad()
@@ -108,29 +118,41 @@ class Motor:
     
     def parar_rapido(self):
         self._cancelar_timer()
-        # Detener giro
+        self._cancelar_parada_timer()
+
+        # Desactivar giro
         GPIO.output(self.pin_gira, GPIO.HIGH)
 
-        # Activar freno rápido
-        GPIO.output(self.pin_parada_rapida, GPIO.LOW)
-
-        threading.Timer(
-            self.pulso_parada_rapida,
-            lambda: GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
-        ).start()
+        # Desactivar parada rapida
+        GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
 
         GPIO.output(self.pin_velocidad, GPIO.HIGH)
+
         self.en_marcha = False
         self.velocidad_baja = True
+
         if self.evento:
             self.evento()
-    
+   
     def parar_normal(self):
         self._cancelar_timer()
+        self._cancelar_parada_timer()
+
+        # Primero desactivo giro
         GPIO.output(self.pin_gira, GPIO.HIGH)
+
+        # Programo desactivación diferida de parada_rapida
+        self._parada_timer = threading.Timer(
+            self.tiempo_apagado_parada_normal,
+            lambda: GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
+        )
+        self._parada_timer.start()
+
         GPIO.output(self.pin_velocidad, GPIO.HIGH)
+
         self.en_marcha = False
         self.velocidad_baja = True
+
         if self.evento:
             self.evento()
     
@@ -149,6 +171,7 @@ class Motor:
 
     def cleanup(self):
         self._cancelar_timer()
+        self._cancelar_parada_timer()
         GPIO.output(self.pin_gira, GPIO.HIGH)
         GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
         GPIO.cleanup([

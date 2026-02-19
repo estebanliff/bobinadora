@@ -1,3 +1,4 @@
 tiempo_subida_velocidad=3
 pulso_parada_rapida=2
 vueltas_para_velocidad_baja=4
+debounce_time_ms=150
