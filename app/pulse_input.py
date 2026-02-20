@@ -1,5 +1,26 @@
 import os
 import RPi.GPIO as GPIO
+import time
+from logging.handlers import RotatingFileHandler
+import logging
+
+handler = RotatingFileHandler(
+    "pulse_debug.log",
+    maxBytes=1_000_000,
+    backupCount=3
+)
+
+formatter = logging.Formatter(
+    "%(asctime)s.%(msecs)03d | %(message)s",
+    "%H:%M:%S"
+)
+
+handler.setFormatter(formatter)
+
+logger = logging.getLogger("pulse")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
 
 def load_tiempos_config(path="cfg/tiempos.txt"):
     config = {
@@ -65,6 +86,7 @@ class PulseInput:
         self.pin = pin
         self.callback = callback
         self.debounce_ms = config["debounce_time_ms"]
+        self._last_pulse_time = 0
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -73,12 +95,27 @@ class PulseInput:
             self.pin,
             GPIO.FALLING,           # pulso a GND
             callback=self._handle_event,
-            bouncetime=self.debounce_ms
+            bouncetime=1
         )
 
     def _handle_event(self, channel):
-        if self.callback:
-            self.callback()
+        now = time.time() * 1000  # ms
+        delta = now - self._last_pulse_time
+        estado = GPIO.input(self.pin)
+
+        logger.info(f"PULSE | Δ={delta:.1f} ms | estado={estado}")
+
+        if delta < self.debounce_ms:
+            logger.info("  -> Ignorado por debounce")
+            return
+
+        if estado == GPIO.LOW:
+            logger.info("  -> Pulso válido")
+            self._last_pulse_time = now
+            if self.callback:
+                self.callback()
+        else:
+            logger.info("  -> Evento espurio (no LOW)")
 
     def cleanup(self):
         GPIO.remove_event_detect(self.pin)
