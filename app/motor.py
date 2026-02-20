@@ -120,31 +120,13 @@ class Motor:
         self._cancelar_timer()
         self._cancelar_parada_timer()
 
-        # Desactivar giro
-        GPIO.output(self.pin_gira, GPIO.HIGH)
-
-        # Desactivar parada rapida
+        # 1️⃣ Activar parada rápida inmediatamente
         GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
 
-        GPIO.output(self.pin_velocidad, GPIO.HIGH)
-
-        self.en_marcha = False
-        self.velocidad_baja = True
-
-        if self.evento:
-            self.evento()
-   
-    def parar_normal(self):
-        self._cancelar_timer()
-        self._cancelar_parada_timer()
-
-        # Primero desactivo giro
-        GPIO.output(self.pin_gira, GPIO.HIGH)
-
-        # Programo desactivación diferida de parada_rapida
+        # Programar apagado diferido del giro
         self._parada_timer = threading.Timer(
             self.tiempo_apagado_parada_normal,
-            lambda: GPIO.output(self.pin_parada_rapida, GPIO.HIGH)
+            lambda: GPIO.output(self.pin_gira, GPIO.HIGH)
         )
         self._parada_timer.start()
 
@@ -155,6 +137,9 @@ class Motor:
 
         if self.evento:
             self.evento()
+   
+    def parar_normal(self):
+        self.parar_rapido()
     
     def disminuir_velocidad(self):
         # Seteo la baja velocidad
