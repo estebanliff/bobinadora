@@ -242,9 +242,9 @@ for i, val in enumerate(TARGET_PRESETS):
         height=2,
         command=lambda v=val: set_target_value(v)
     )
-    if i>=2:
+    if i>=3:
         row = 1
-        col = i - 2
+        col = i - 3
     else:
         row = 0
         col = i
@@ -419,8 +419,7 @@ def on_pulse():
 
 pulse_listener = PulseInput(
     pin=23,
-    callback=on_pulse,
-    debounce_ms=150
+    callback=on_pulse
 )
 
 # -------------------------------------------------

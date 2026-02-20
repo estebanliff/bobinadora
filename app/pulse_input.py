@@ -3,6 +3,9 @@ import RPi.GPIO as GPIO
 
 def load_tiempos_config(path="cfg/tiempos.txt"):
     config = {
+        "tiempo_subida_velocidad": 3,
+        "pulso_parada_rapida": 2,
+        "vueltas_para_velocidad_baja": 20,
         "debounce_time_ms": 150
     }
 
@@ -51,8 +54,7 @@ class PulseInput:
     def __init__(
         self,
         pin=23,
-        callback=None,
-        debounce_ms=50
+        callback=None
     ):
         """
         pin: GPIO BCM

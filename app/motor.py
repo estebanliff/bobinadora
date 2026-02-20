@@ -6,15 +6,20 @@ def load_tiempos_config(path="cfg/tiempos.txt"):
     config = {
         "tiempo_subida_velocidad": 3,
         "pulso_parada_rapida": 2,
-        "vueltas_para_velocidad_baja": 20
+        "vueltas_para_velocidad_baja": 20,
+        "debounce_time_ms": 150
     }
 
     if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write("tiempo_subida_velocidad=3\n")
-            f.write("pulso_parada_rapida=2\n")
-            f.write("vueltas_para_velocidad_baja=4\n")
-            f.write("debounce_time_ms=150\n")
+        try:
+            with open(path, "w") as f:
+                f.write("tiempo_subida_velocidad=3\n")
+                f.write("pulso_parada_rapida=2\n")
+                f.write("vueltas_para_velocidad_baja=4\n")
+                f.write("debounce_time_ms=150\n")
+            print(f"[CONFIG] Archivo no encontrado. Se creó uno nuevo en {path}")
+        except OSError as e:
+            print(f"[CONFIG][ERROR] No se pudo crear el archivo {path}: {e}")
         return config
 
     try:
@@ -26,6 +31,7 @@ def load_tiempos_config(path="cfg/tiempos.txt"):
                     continue
 
                 if "=" not in line:
+                    print(f"[CONFIG][WARN] Línea inválida (sin '='): {line}")
                     continue
 
                 key, value = line.split("=", 1)
@@ -33,10 +39,15 @@ def load_tiempos_config(path="cfg/tiempos.txt"):
                 value = value.strip()
 
                 if key in config:
-                    config[key] = int(value)
+                    try:
+                        config[key] = int(value)
+                    except ValueError:
+                        print(f"[CONFIG][ERROR] Valor inválido para '{key}': {value}")
+                else:
+                    print(f"[CONFIG][WARN] Clave desconocida en config: {key}")
 
-    except OSError:
-        pass
+    except OSError as e:
+        print(f"[CONFIG][ERROR] No se pudo leer el archivo {path}: {e}")
 
     return config
 
